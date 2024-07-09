@@ -6,7 +6,7 @@
 /*   By: zuzanapiarova <zuzanapiarova@student.42    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/27 21:36:20 by zuzanapiaro       #+#    #+#             */
-/*   Updated: 2024/06/30 14:49:21 by zuzanapiaro      ###   ########.fr       */
+/*   Updated: 2024/07/09 11:08:57 by zuzanapiaro      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -125,4 +125,24 @@ size_t	ft_strlcpy(char *dst, const char *src, size_t size)
 	}
 	dst[i] = '\0';
 	return (ft_strlen(src));
+}
+
+size_t ft_strlcat(char *dst, const char *src, size_t size) {
+    size_t dst_size;
+    size_t src_size;
+	size_t free_space;
+
+	dst_size = strlen(dst);
+	src_size = strlen(src);
+    if (size < dst_size)
+        return size + src_size;
+	if(size == dst_size)
+		return (dst_size + src_size);
+    free_space = size - dst_size - 1;
+    if (free_space > src_size) {
+        free_space = src_size;
+    }
+    memcpy(dst + dst_size, src, free_space);
+    dst[dst_size + free_space] = '\0';
+    return dst_size + src_size;
 }
