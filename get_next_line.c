@@ -6,7 +6,7 @@
 /*   By: zuzanapiarova <zuzanapiarova@student.42    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/07/08 12:56:58 by zuzanapiaro       #+#    #+#             */
-/*   Updated: 2024/07/09 11:11:29 by zuzanapiaro      ###   ########.fr       */
+/*   Updated: 2024/07/12 11:04:42 by zuzanapiaro      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,170 +26,121 @@
 // we need static variables to store the left characters adn have them stored for the next function call
 // do we have to free this line ??
 
+char *handle_error(char *line, char *buffer, char *left_chars)
+{
+    if (line)
+    {
+        free(line);
+        //line = NULL;
+    }
+    if (buffer)
+    {
+        free(buffer);
+        //buffer = NULL;
+    }
+    if (left_chars)
+    {
+        free(left_chars);
+        //left_chars = NULL;
+    }
+    return (NULL);
+}
+
+char *start_line(char *str)
+{
+    char *newline = ft_strchr(str, '\n');
+    char *line;
+
+    int i = newline - str;
+    line = malloc((i + 2) * sizeof(char));
+    if (!line)
+        return (NULL);
+    line[i] = '\n';
+    line[i + 1] = '\0';
+    while (i--)
+        line[i] = str[i];
+    return (line);
+}
+
+char *handle_left_chars(char *left_chars, char *line)
+{
+    char *tempstr;
+    tempstr = ft_strdup(ft_strchr(left_chars, '\n') + 1);
+    free(left_chars);
+    if (!tempstr)
+    {
+        free(line);
+        return (NULL);
+    }
+    left_chars = tempstr;
+    return (left_chars);
+}
+
+char *handle_no_newline_read(char *line, char *buffer, char *left_chars)
+{
+    int length;
+
+    length = strlen(line) + strlen(buffer) + 1;
+    char* result = malloc(length * sizeof(char));
+    if (!result)
+        return (handle_error(line, buffer, left_chars));
+    ft_strlcpy(result, line, length);
+    ft_strlcat(result, buffer, length);
+    free(line);
+    return (result);
+}
+
 char *get_next_line(int fd)
 {
     char *buffer;
     char *line;
     int chars_read;
     static char *left_chars;
-    char *tempstr;
 
-    if (BUFFER_SIZE <= 0 || fd < 0 || read(fd, 0, 0) < 0)
+    if (BUFFER_SIZE <= 0 || fd < 0 || read(fd, 0, 0) < 0) // handle invalid or empty input parameters
     {
         free(left_chars);
         left_chars = NULL;
         return (NULL);
     }
-
-    buffer = malloc((BUFFER_SIZE + 1) * sizeof(char));
-    if (!buffer)
-        return (NULL);
-
-    if (left_chars)
+    if (left_chars) //handle input if there was anything left after newline from the previous buffer read
     {
-        char *newline = ft_strchr(left_chars, '\n');
-        if (newline)
+        if (ft_strchr(left_chars, '\n'))
         {
-            int i = newline - left_chars;
-            line = malloc((i + 2) * sizeof(char));
-            if (!line)
-            {
-                free(buffer);
-                return (NULL);
-            }
-            line[i] = '\n';
-            line[i + 1] = '\0';
-            while (i--)
-                line[i] = left_chars[i];
-            tempstr = ft_strdup(newline + 1);
-            if (!tempstr)
-            {
-                free(buffer);
-                free(line);
-                return (NULL);
-            }
-            free(left_chars);
-            left_chars = tempstr;
-            free(buffer);
+            line = start_line(left_chars);
+            left_chars = handle_left_chars(left_chars, line);
             return (line);
         }
-        else
-        {
-            line = ft_strdup(left_chars);
-            free(left_chars);
-            left_chars = NULL;
-            if (!line)
-            {
-                free(buffer);
-                return (NULL);
-            }
-        }
+        line = ft_strdup(left_chars);
+        free(left_chars);
+        left_chars = NULL;
     }
-    else
-    {
+    else // if there was nothing left from the previous buffer read allocate and create an empty line
         line = ft_strdup("");
-        if (!line)
-        {
-            free(buffer);
-            return (NULL);
-        }
-    }
-
+    buffer = malloc((BUFFER_SIZE + 1) * sizeof(char)); // create buffer with proper size
+    if (!buffer)
+        return (NULL);
     chars_read = 1;
-    while (chars_read > 0)
+    while (chars_read > 0) // start reading from buffer in iterations until there is something to read
     {
         chars_read = read(fd, buffer, BUFFER_SIZE);
-        if (chars_read == 0 && ft_strlen(line) == 0)
-        {
-            free(buffer);
-            free(line);
-			free(left_chars);
-            line = NULL;
-            buffer = NULL;
-            left_chars = NULL;
-            return (NULL);
-        }
-        if (chars_read < 0)
-        {
-            free(buffer);
-            free(line);
-			free(left_chars);
-            line = NULL;
-            buffer = NULL;
-            left_chars = NULL;
-            return (NULL);
-        }
+        if (chars_read < 0 || (chars_read == 0 && ft_strlen(line) == 0))
+            return (handle_error(line, buffer, left_chars));
         else if (chars_read == 0)
             break;
         buffer[chars_read] = '\0';
-
         if (ft_strchr(buffer, '\n'))
         {
-            char *newline = ft_strchr(buffer, '\n');
-            int i = newline - buffer;
-            char *temp = malloc((i + 2) * sizeof(char));
-            if (!temp)
-            {
-                free(buffer);
-                free(line);
-                return (NULL);
-            }
-            temp[i] = '\n';
-            temp[i + 1] = '\0';
-            while (i--)
-                temp[i] = buffer[i];
-
+            char *temp = start_line(buffer);
             char *new_line = ft_strjoin(line, temp);
             free(temp);
-            if (!new_line)
-            {
-                free(buffer);
-                free(line);
-                return (NULL);
-            }
             free(line);
             line = new_line;
-
-            free(left_chars);
-            left_chars = ft_strdup(newline + 1);
-            if (!left_chars)
-            {
-                free(buffer);
-                free(line);
-                return (NULL);
-            }
+            left_chars = ft_strdup(ft_strchr(buffer, '\n') + 1);
             free(buffer);
             return (line);
         }
-        // PROBLEM WITH LONG LINE - IT READS THE LINE INTO BUFFER BUT APPARENTLY TOO SLOWLY, PROBLEM IN THIS SCOPE
-        else
-        {
-           /*  // START
-            char *new_line = ft_strjoin(line, buffer);
-            if (!new_line)
-            {
-                free(buffer);
-                free(line);
-                return (NULL);
-            }
-            free(line);
-            line = new_line;
-            // END */
-            int length;
-
-            length = strlen(line) + strlen(buffer) + 1;
-            char* result = malloc(length * sizeof(char));
-            if (!result)
-            {
-                free(buffer);
-                free(line);
-                return (NULL);
-            }
-            ft_strlcpy(result, line, length);
-            ft_strlcat(result, buffer, length);
-            free(line);
-            line = result;
-        }
+        line = handle_no_newline_read(line, buffer, left_chars);
     }
     free(buffer);
     return (line);
