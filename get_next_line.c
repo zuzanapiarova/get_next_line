@@ -6,7 +6,7 @@
 /*   By: zuzanapiarova <zuzanapiarova@student.42    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/07/08 12:56:58 by zuzanapiaro       #+#    #+#             */
-/*   Updated: 2024/07/12 11:04:42 by zuzanapiaro      ###   ########.fr       */
+/*   Updated: 2024/07/15 14:21:27 by zuzanapiaro      ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,7 +26,7 @@
 // we need static variables to store the left characters adn have them stored for the next function call
 // do we have to free this line ??
 
-char *handle_error(char *line, char *buffer, char *left_chars)
+/* char *handle_error(char *line, char *buffer, char *left_chars)
 {
     if (line)
     {
@@ -144,6 +144,117 @@ char *get_next_line(int fd)
     }
     free(buffer);
     return (line);
+} */
+
+// Free memory and return NULL in case of an error
+char *handle_error(char *line, char *buffer, char *left_chars)
+{
+    if (line) free(line);
+    if (buffer) free(buffer);
+    if (left_chars) free(left_chars);
+    return NULL;
+}
+
+// Create a new line from the given string until the newline character
+char *start_line(char *str)
+{
+    char *newline = ft_strchr(str, '\n');
+    char *line;
+    int i = newline - str;
+
+    line = malloc((i + 2) * sizeof(char));
+    if (!line) return NULL;
+    line[i] = '\n';
+    line[i + 1] = '\0';
+    while (i--) line[i] = str[i];
+    return line;
+}
+
+// Handle leftover characters after a newline
+char *handle_left_chars(char *left_chars, char *line)
+{
+    char *tempstr = ft_strdup(ft_strchr(left_chars, '\n') + 1);
+    free(left_chars);
+    if (!tempstr)
+    {
+        free(line);
+        return NULL;
+    }
+    return tempstr;
+}
+
+// Concatenate the line with the buffer content when no newline is found
+char *handle_no_newline_read(char *line, char *buffer, char *left_chars)
+{
+    int length = strlen(line) + strlen(buffer) + 1;
+    char *result = malloc(length * sizeof(char));
+    if (!result) return handle_error(line, buffer, left_chars);
+
+    ft_strlcpy(result, line, length);
+    ft_strlcat(result, buffer, length);
+    free(line);
+    return result;
+}
+
+// Read from the file descriptor and process the buffer
+char *process_buffer(int fd, char *buffer, char **line, char **left_chars)
+{
+    int chars_read = 1;
+    while (chars_read > 0)
+    {
+        chars_read = read(fd, buffer, BUFFER_SIZE);
+        if (chars_read < 0 || (chars_read == 0 && ft_strlen(*line) == 0))
+            return handle_error(*line, buffer, *left_chars);
+        else if (chars_read == 0)
+            break;
+        buffer[chars_read] = '\0';
+        if (ft_strchr(buffer, '\n'))
+        {
+            char *temp = start_line(buffer);
+            char *new_line = ft_strjoin(*line, temp);
+            free(temp);
+            free(*line);
+            *line = new_line;
+            *left_chars = ft_strdup(ft_strchr(buffer, '\n') + 1);
+            free(buffer);
+            return *line;
+        }
+        *line = handle_no_newline_read(*line, buffer, *left_chars);
+    }
+    free(buffer);
+    return *line;
+}
+
+char *get_next_line(int fd)
+{
+    char *buffer;
+    char *line;
+    static char *left_chars;
+
+    if (BUFFER_SIZE <= 0 || fd < 0 || read(fd, 0, 0) < 0)
+        return handle_error(NULL, NULL, left_chars);
+
+    if (left_chars)
+    {
+        if (ft_strchr(left_chars, '\n'))
+        {
+            line = start_line(left_chars);
+            left_chars = handle_left_chars(left_chars, line);
+            return line;
+        }
+        line = ft_strdup(left_chars);
+        free(left_chars);
+        left_chars = NULL;
+    }
+    else
+    {
+        line = ft_strdup("");
+    }
+
+    buffer = malloc((BUFFER_SIZE + 1) * sizeof(char));
+    if (!buffer) return NULL;
+
+    return process_buffer(fd, buffer, &line, &left_chars);
 }
 
 // int	main(void)
